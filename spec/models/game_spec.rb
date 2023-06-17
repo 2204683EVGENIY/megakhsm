@@ -59,17 +59,36 @@ RSpec.describe Game, type: :model do
     end
   end
 
-  context '#current game question & previous_level' do
-    it 'returns the current game question' do
-      game_w_questions.current_level = 10
-      expect(game_w_questions.current_game_question).to be_instance_of(GameQuestion)
-      expect(game_w_questions.current_game_question.level).to eq(10)
-      expect(game_w_questions.current_game_question.level).to eq(game_w_questions.current_level)
-    end
+  describe Game do
+    let(:user) { FactoryBot.create(:user) }
+    let(:game_w_questions) { FactoryBot.create(:game_with_questions, user: user) }
 
-     it 'returns previous_level' do
-      game_w_questions.current_level = 10
-      expect(game_w_questions.previous_level).to eq 9
+    context '#current game question' do
+    before { game_w_questions.current_level = 10 }
+
+      it 'current game question instance GameQuestion' do
+        expect(game_w_questions.current_game_question).to be_instance_of(GameQuestion)
+      end
+
+      it 'current game question level is truthy' do
+        expect(game_w_questions.current_game_question.level).to eq(10)
+      end
+
+      it 'game level match with question level' do
+        expect(game_w_questions.current_game_question.level).to eq(game_w_questions.current_level)
+      end
+    end
+  end
+
+  describe Game do
+    let(:user) { FactoryBot.create(:user) }
+    let(:game_w_questions) { FactoryBot.create(:game_with_questions, user: user) }
+
+    context '#previous level' do
+    before { game_w_questions.current_level = 10 }
+      it 'returns previous level' do
+        expect(game_w_questions.previous_level).to eq 9
+      end
     end
   end
 
@@ -167,8 +186,11 @@ RSpec.describe Game, type: :model do
 
   describe '#status' do
     context 'when game not finished' do
-      it 'returns in_progress' do
+      it 'game in progress' do
         expect(game_w_questions.status).to eq :in_progress
+      end
+
+      it 'game not finish' do
         expect(game_w_questions.finished_at).to be nil
       end
     end

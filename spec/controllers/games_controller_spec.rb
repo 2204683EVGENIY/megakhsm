@@ -91,5 +91,61 @@ RSpec.describe GamesController, type: :controller do
       expect(game.current_game_question.help_hash[:audience_help].keys).to contain_exactly('a', 'b', 'c', 'd')
       expect(response).to redirect_to(game_path(game))
     end
+
+    it 'kick from other game' do
+      alien_game = FactoryBot.create(:game_with_questions)
+      get :show, id: alien_game.id
+      expect(response.status).not_to eq(200) # статус не 200 ОК
+      expect(response).to redirect_to(root_path)
+      expect(flash[:alert]).to be # во flash должен быть прописана ошибка
+    end
+
+    it 'user takes money until the game finish' do
+      # вручную поднимем уровень вопроса до выигрыша 200
+      game_w_questions.update_attribute(:current_level, 2)
+      put :take_money, id: game_w_questions.id
+      game = assigns(:game)
+      expect(game.finished?).to be_truthy
+      expect(game.prize).to eq(200)
+      # пользователь изменился в базе, надо в коде перезагрузить!
+      user.reload
+      expect(user.balance).to eq(200)
+      expect(response).to redirect_to(user_path(user))
+      expect(flash[:warning]).to be
+    end
+
+    it 'user cannot start two games' do
+      # убедились что есть игра в работе
+      expect(game_w_questions.finished?).to be_falsey
+      # отправляем запрос на создание, убеждаемся что новых Game не создалось
+      expect { post :create }.to change(Game, :count).by(0)
+      game = assigns(:game) # вытаскиваем из контроллера поле @game
+      expect(game).to be_nil
+      # и редирект на страницу старой игры
+      expect(response).to redirect_to(game_path(game_w_questions))
+      expect(flash[:alert]).to be
+    end
+  end
+
+  context 'if player wrong' do
+    let(:game_w_questions) { FactoryBot.create(:game_with_questions, user: user, current_level: Game::FIREPROOF_LEVELS[0] + 1) }
+
+    before do
+      sign_in user
+      put :answer,
+          id: game_w_questions.id,
+          letter: %w[a b c d].grep_v(game_w_questions.current_game_question.correct_answer_key).sample
+    end
+
+    let(:game) { assigns(:game) }
+
+    it 'wrong player answer' do
+      expect(game.finished?).to be true
+      expect(response).to redirect_to(user_path(user))
+      expect(flash[:alert]).to be
+      expect(game.prize).to eq(Game::PRIZES[Game::FIREPROOF_LEVELS[0]])
+      user.reload
+      expect(user.balance).to eq(Game::PRIZES[Game::FIREPROOF_LEVELS[0]])
+    end
   end
 end
