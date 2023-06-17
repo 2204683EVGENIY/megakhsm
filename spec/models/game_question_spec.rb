@@ -8,7 +8,25 @@ RSpec.describe GameQuestion, type: :model do
 
   # задаем локальную переменную game_question, доступную во всех тестах этого сценария
   # она будет создана на фабрике заново для каждого блока it, где она вызывается
-  let(:game_question) { FactoryGirl.create(:game_question, a: 2, b: 1, c: 4, d: 3) }
+  let(:game_question) { FactoryBot.create(:game_question, a: 2, b: 1, c: 4, d: 3) }
+
+  context '#correct answer key' do
+    it 'returns right answer' do
+      expect(game_question.variants[game_question.correct_answer_key]).to eq(game_question.question.answer1)
+    end
+  end
+
+  context '#tests for .text and .level methods' do
+    it 'returns text question' do
+      game_question.question.text = 'Мама мыла раму'
+      expect(game_question.question.text).to eq('Мама мыла раму')
+    end
+
+    it 'returns level question' do
+      game_question.question.level = 10
+      expect(game_question.question.level).to eq 10
+    end
+  end
 
   # группа тестов на игровое состояние объекта вопроса
   context 'game status' do
@@ -37,11 +55,8 @@ RSpec.describe GameQuestion, type: :model do
   context 'user helpers' do
     it 'correct audience_help' do
       expect(game_question.help_hash).not_to include(:audience_help)
-
       game_question.add_audience_help
-
       expect(game_question.help_hash).to include(:audience_help)
-
       ah = game_question.help_hash[:audience_help]
       expect(ah.keys).to contain_exactly('a', 'b', 'c', 'd')
     end

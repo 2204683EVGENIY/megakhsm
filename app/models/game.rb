@@ -1,6 +1,6 @@
 #  (c) goodprogrammer.ru
 #
-# Модельи игры — создается когда пользователь начинает новую игру
+# Модельки игры — создается когда пользователь начинает новую игру
 # Хранит/обновляет состояние игры и отвечает за игровой процесс.
 class Game < ActiveRecord::Base
 
@@ -64,7 +64,7 @@ class Game < ActiveRecord::Base
 
   # текущий, еще неотвеченный вопрос игры
   def current_game_question
-    game_questions.detect { |q| q.question.level == current_level }
+    game_questions.joins(:question).where(questions: { level: current_level }).first
   end
 
   # -1 для новой игры!
@@ -121,7 +121,6 @@ class Game < ActiveRecord::Base
     return if time_out! || finished? # из законченной или неначатой игры нечего брать
     finish_game!((previous_level > -1) ? PRIZES[previous_level] : 0, false)
   end
-
 
   # todo: дорогой ученик!
   # Код метода ниже можно сократиь в 3 раза с помощью возможностей Ruby и Rails,
