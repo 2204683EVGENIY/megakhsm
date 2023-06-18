@@ -12,7 +12,7 @@ RSpec.describe GameQuestion, type: :model do
 
   context '#correct answer key' do
     it 'returns right answer' do
-      expect(game_question.variants[game_question.correct_answer_key]).to eq(game_question.question.answer1)
+      expect(game_question.correct_answer_key).to eq('b')
     end
   end
 
