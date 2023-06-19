@@ -16,7 +16,7 @@ module Billionaire
     config.i18n.fallbacks = [:en]
 
     config.time_zone = 'Moscow'
-
+    config.autoload_paths << "#{root}/lib"
 
     # Do not swallow errors in after_commit/after_rollback callbacks.
     config.active_record.raise_in_transactional_callbacks = true
