@@ -53,12 +53,53 @@ RSpec.describe GameQuestion, type: :model do
   #
 
   context 'user helpers' do
-    it 'correct audience_help' do
+    it 'correct audience help' do
       expect(game_question.help_hash).not_to include(:audience_help)
       game_question.add_audience_help
       expect(game_question.help_hash).to include(:audience_help)
       ah = game_question.help_hash[:audience_help]
       expect(ah.keys).to contain_exactly('a', 'b', 'c', 'd')
     end
+
+    it 'correct fifty fifty help' do
+      # сначала убедимся, в подсказках пока нет нужного ключа
+      expect(game_question.help_hash).not_to include(:fifty_fifty)
+      # вызовем подсказку
+      game_question.add_fifty_fifty
+      # проверим создание подсказки
+      expect(game_question.help_hash).to include(:fifty_fifty)
+      ff = game_question.help_hash[:fifty_fifty]
+      expect(ff).to include('b') # должен остаться правильный вариант
+      expect(ff.size).to eq 2 # всего должно остаться 2 варианта
+    end
+
+    it 'friend call help' do
+      # сначала убедимся, в подсказках пока нет нужного ключа
+      expect(game_question.help_hash).not_to include(:friend_call)
+      # вызовем подсказку
+      game_question.add_friend_call
+      # проверим создание подсказки
+      expect(game_question.help_hash).to include(:friend_call)
+      fc = game_question.help_hash[:friend_call]
+      expect(fc).to be_instance_of(String)
+    end
+  end
+
+  it 'correct .help_hash' do
+    # на фабрике у нас изначально хэш пустой
+    expect(game_question.help_hash).to eq({})
+
+    # добавляем пару ключей
+    game_question.help_hash[:some_key1] = 'blabla1'
+    game_question.help_hash['some_key2'] = 'blabla2'
+
+    # сохраняем модель и ожидаем сохранения хорошего
+    expect(game_question.save).to be_truthy
+
+    # загрузим этот же вопрос из базы для чистоты эксперимента
+    gq = GameQuestion.find(game_question.id)
+
+    # проверяем новые значение хэша
+    expect(gq.help_hash).to eq({some_key1: 'blabla1', 'some_key2' => 'blabla2'})
   end
 end
