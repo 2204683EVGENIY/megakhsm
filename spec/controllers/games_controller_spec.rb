@@ -169,7 +169,7 @@ RSpec.describe GamesController, type: :controller do
       end
 
       context 'and answer is wrong' do
-        let!(:game_w_questions) { FactoryBot.create(:game_with_questions, user: user, current_level: Game::FIREPROOF_LEVELS[0] + 1) }
+        let!(:game_w_questions) { FactoryBot.create(:game_with_questions, user: user, current_level: Game::FIREPROOF_LEVELS[1]) }
         before do
           put :answer,
               id: game_w_questions.id,
@@ -227,98 +227,101 @@ RSpec.describe GamesController, type: :controller do
       end
     end
 
-    context 'use audience help' do
+    context 'when user is signed in' do
       before { sign_in user }
-      before { put :help, id: game_w_questions.id, help_type: :audience_help }
 
-      let!(:game) { assigns(:game) }
+      context 'use audience help' do
+        before { put :help, id: game_w_questions.id, help_type: :audience_help }
 
-      it 'does not finish game' do
-        expect(game.finished?).to be false
+        let!(:game) { assigns(:game) }
+
+        it 'does not finish game' do
+          expect(game.finished?).to be false
+        end
+
+        it 'toggles audience help_used' do
+          expect(game.audience_help_used).to be true
+        end
+
+        it 'adds audience help to help hash' do
+          expect(game.current_game_question.help_hash[:audience_help]).to be
+        end
+
+        it 'redirects to game' do
+          expect(response).to redirect_to(game_path(game))
+        end
+
+        it 'returns all keys' do
+          expect(game.current_game_question.help_hash[:audience_help].keys).to contain_exactly('a', 'b', 'c', 'd')
+        end
+
+        it 'show flash' do
+          expect(flash[:info]).to be
+        end
       end
 
-      it 'toggles audience help_used' do
-        expect(game.audience_help_used).to be true
+      context 'use fifty fifty help' do
+        before { put :help, id: game_w_questions.id, help_type: :fifty_fifty }
+
+        let!(:game) { assigns(:game) }
+
+        it 'does not finish game' do
+          expect(game.finished?).to be false
+        end
+
+        it 'toggles fifty fifty used' do
+          expect(game.fifty_fifty_used).to be true
+        end
+
+        it 'adds fifty fifty to help hash' do
+          expect(game.current_game_question.help_hash[:fifty_fifty]).to be
+        end
+
+        it 'redirects to game' do
+          expect(response).to redirect_to(game_path(game))
+        end
+
+        it 'returns array with 2 elements' do
+          expect(game.current_game_question.help_hash[:fifty_fifty].size).to eq(2)
+        end
+
+        it 'includes correct answer key' do
+          expect(game.current_game_question.help_hash[:fifty_fifty]).to include(game.current_game_question.correct_answer_key)
+        end
+
+        it 'show flash' do
+          expect(flash[:info]).to be
+        end
       end
 
-      it 'adds audience help to help_hash' do
-        expect(game.current_game_question.help_hash[:audience_help]).to be
-      end
+      context 'and use friend call help' do
+        before { put :help, id: game_w_questions.id, help_type: :friend_call }
 
-      it 'redirects to game' do
-        expect(response).to redirect_to(game_path(game))
-      end
+        let!(:game) { assigns(:game) }
 
-      it 'returns all keys' do
-        expect(game.current_game_question.help_hash[:audience_help].keys).to contain_exactly('a', 'b', 'c', 'd')
-      end
+        it 'does not finish game' do
+          expect(game.finished?).to be false
+        end
 
-      it 'show flash' do
-        expect(flash[:info]).to be
-      end
-    end
+        it 'toggles friend call_used' do
+          expect(game.friend_call_used).to be true
+        end
 
-    context 'use fifty fifty help' do
-      before { put :help, id: game_w_questions.id, help_type: :fifty_fifty }
+        it 'adds friend call to help hash' do
+          expect(game.current_game_question.help_hash[:friend_call]).to be
+        end
 
-      let!(:game) { assigns(:game) }
+        it 'redirects to game' do
+          expect(response).to redirect_to(game_path(game))
+        end
 
-      it 'does not finish game' do
-        expect(game.finished?).to be false
-      end
+        it 'returns string' do
+          expect(game.current_game_question.help_hash[:friend_call]).to be_instance_of(String)
+        end
 
-      it 'toggles fifty fifty used' do
-        expect(game.fifty_fifty_used).to be true
-      end
-
-      it 'adds fifty fifty to help hash' do
-        expect(game.current_game_question.help_hash[:fifty_fifty]).to be
-      end
-
-      it 'redirects to game' do
-        expect(response).to redirect_to(game_path(game))
-      end
-
-      it 'returns array with 2 elements' do
-        expect(game.current_game_question.help_hash[:fifty_fifty].size).to eq(2)
-      end
-
-      it 'includes correct answer key' do
-        expect(game.current_game_question.help_hash[:fifty_fifty]).to include(game.current_game_question.correct_answer_key)
-      end
-
-      it 'show flash' do
-        expect(flash[:info]).to be
-      end
-    end
-
-    context 'and use friend call help' do
-      before { put :help, id: game_w_questions.id, help_type: :friend_call }
-
-      let!(:game) { assigns(:game) }
-
-      it 'does not finish game' do
-        expect(game.finished?).to be false
-      end
-
-      it 'toggles friend call_used' do
-        expect(game.friend_call_used).to be true
-      end
-
-      it 'adds friend call to help hash' do
-        expect(game.current_game_question.help_hash[:friend_call]).to be
-      end
-
-      it 'redirects to game' do
-        expect(response).to redirect_to(game_path(game))
-      end
-
-      it 'returns string' do
-        expect(game.current_game_question.help_hash[:friend_call]).to be_instance_of(String)
-      end
-
-      it 'show flash' do
-        expect(flash[:info]).to be
+        it 'show flash' do
+          expect(flash[:info]).to be
+        end
       end
     end
   end
@@ -344,12 +347,12 @@ RSpec.describe GamesController, type: :controller do
       end
 
       it 'get prize' do
-        expect(game.prize).to eq(Game::PRIZES[1])
+        expect(game.prize).to eq(200)
       end
 
       it 'update user balance' do
         user.reload
-        expect(user.balance).to eq(Game::PRIZES[1])
+        expect(user.balance).to eq(200)
       end
     end
   end
