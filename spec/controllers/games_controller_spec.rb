@@ -327,6 +327,29 @@ RSpec.describe GamesController, type: :controller do
   end
 
   describe '#take_money' do
+    context 'user is not signed in' do
+      before { game_w_questions.update_attribute(:current_level, 2) }
+      before { put :take_money, id: game_w_questions.id }
+
+      let!(:game) { assigns(:game) }
+
+      it 'sets game nil' do
+        expect(game).to be_nil
+      end
+
+      it 'redirects to login' do
+        expect(response).to redirect_to(new_user_session_path)
+      end
+
+      it 'show flash' do
+        expect(flash[:alert]).to be
+      end
+
+      it 'response status not 200' do
+        expect(response.status).not_to eq(200)
+      end
+    end
+
     context 'user take money' do
       before { sign_in user }
       before { game_w_questions.update_attribute(:current_level, 2) }
