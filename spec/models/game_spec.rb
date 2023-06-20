@@ -59,27 +59,31 @@ RSpec.describe Game, type: :model do
     end
   end
 
-  context '#current game question' do
-    before { game_w_questions.current_level = 10 }
+  describe '#current game question' do
+    context 'current game question is correct' do
+      before { game_w_questions.current_level = 10 }
 
-    it 'current game question instance GameQuestion' do
-      expect(game_w_questions.current_game_question).to be_instance_of(GameQuestion)
-    end
+      it 'current game question instance GameQuestion' do
+        expect(game_w_questions.current_game_question).to be_instance_of(GameQuestion)
+      end
 
-    it 'current game question level is truthy' do
-      expect(game_w_questions.current_game_question.level).to eq(10)
-    end
+      it 'current game question level is truthy' do
+        expect(game_w_questions.current_game_question.level).to eq(10)
+      end
 
-    it 'game level match with question level' do
-      expect(game_w_questions.current_game_question.level).to eq(game_w_questions.current_level)
+      it 'game level match with question level' do
+        expect(game_w_questions.current_game_question.level).to eq(game_w_questions.current_level)
+      end
     end
   end
 
-  context '#previous level' do
-    before { game_w_questions.current_level = 10 }
+  describe '#previous level' do
+    context 'method return previous level of game' do
+      before { game_w_questions.current_level = 10 }
 
-    it 'returns previous level' do
-      expect(game_w_questions.previous_level).to eq 9
+      it 'returns previous level' do
+        expect(game_w_questions.previous_level).to eq 9
+      end
     end
   end
 
