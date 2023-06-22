@@ -8,7 +8,7 @@ require 'support/my_spec_helper' # наш собственный класс с �
 #   1. на авторизацию (чтобы к чужим юзерам не утекли не их данные)
 #   2. на четкое выполнение самых важных сценариев (требований) приложения
 #   3. на передачу граничных/неправильных данных в попытке сломать контроллер
-#
+
 RSpec.describe GamesController, type: :controller do
   # обычный пользователь
   let(:user) { FactoryBot.create(:user) }
@@ -16,62 +16,36 @@ RSpec.describe GamesController, type: :controller do
   let(:admin) { FactoryBot.create(:user, is_admin: true) }
   # игра с прописанными игровыми вопросами
   let(:game_w_questions) { FactoryBot.create(:game_with_questions, user: user) }
+  # вытаскиваем поле game из контроллера
+  let(:game) { assigns(:game) }
 
   # тесты на метод #show
   describe '#show' do
-    # группа тестов для незалогиненного юзера
-    # из экшена show анона посылаем
-    context 'anon kick from #show' do
-      before { get :show, id: game_w_questions.id } # вызываем экшен
+    # юзер не залогинен
+    context 'user is not login' do
+      before { get :show, id: game_w_questions.id }
 
       it 'check status' do
-        expect(response.status).not_to eq(200) # статус не 200 ОК
+        expect(response.status).not_to eq(200)
       end
 
       it 'redirect to login' do
-        expect(response).to redirect_to(new_user_session_path) # devise должен отправить на логин
+        expect(response).to redirect_to(new_user_session_path)
       end
 
       it 'must be error' do
-        expect(flash[:alert]).to be # во flash должен быть прописана ошибка
+        expect(flash[:alert]).to be
       end
     end
 
-    # группа тестов на экшен #show для залогиненного юзера
-    context 'usual user #show' do
+    # юзер залогинен
+    context 'user is login' do
       # перед каждым тестом в группе
-      before { sign_in user } # логиним юзера user с помощью спец. Devise метода sign_in
-
-      # юзер может создать новую игру
-      context 'creates game' do
-        before { generate_questions(15) } # накидаем вопросов
-        before { post :create }
-
-        let!(:game) { assigns(:game) } # вытаскиваем из контроллера поле @game
-
-        it 'check game status' do
-          # проверяем состояние этой игры
-          expect(game.finished?).to be false
-        end
-
-        it 'check game user' do
-          expect(game.user).to eq(user)
-        end
-
-        it 'redirect to game page' do
-          # редирект на страницу этой игры
-          expect(response).to redirect_to(game_path(game))
-        end
-
-        it 'show flash' do
-          expect(flash[:notice]).to be
-        end
-      end
+      before { sign_in user }
 
       # юзер видит свою игру
-      context 'see game' do
+      context 'user see game' do
         before { get :show, id: game_w_questions.id }
-        let!(:game) { assigns(:game) } # вытаскиваем из контроллера поле @game
 
         it 'game not finish' do
           expect(game.finished?).to be false
@@ -90,12 +64,85 @@ RSpec.describe GamesController, type: :controller do
         end
       end
 
-      # юзер не может создать новую игру пока не доиграл в предыдущю
-      context 'kick from other game' do
-        before { game_w_questions }
+      # юзер не видит свою игру
+      context 'user not see game' do
+        before { get :show, id: alien_game.id }
+        let!(:alien_game) { create(:game_with_questions) }
+
+        it 'redirects from show' do
+          expect(response).to redirect_to(root_path)
+        end
+
+        it 'check status' do
+          expect(response.status).not_to eq(200)
+        end
+
+        it 'show flash' do
+          expect(flash[:alert]).to be
+        end
+      end
+    end
+  end
+
+  # тесты на метод #create
+  describe '#create' do
+    before { generate_questions(15) }
+    before { post :create }
+
+    # юзер не залогинен
+    context 'user is not login' do
+      let(:create_game) { post :create }
+
+      it 'does not create new game' do
+        expect { create_game }.to change(Game, :count).by(0)
+      end
+
+      it 'game nil' do
+        expect(game).to be_nil
+      end
+
+      it 'redirects to login' do
+        expect(response).to redirect_to(new_user_session_path)
+      end
+
+      it 'show flash' do
+        expect(flash[:alert]).to be
+      end
+
+      it 'check status' do
+        expect(response.status).not_to eq(200)
+      end
+    end
+
+    # юзер залогинен
+    context 'user is login' do
+      before { sign_in user }
+
+      # юзер создает игру и у него нет незаконченных игр
+      context 'user create game and no have active games' do
         before { post :create }
+
+        it 'check game status' do
+          expect(game.finished?).to be false
+        end
+
+        it 'check game user' do
+          expect(game.user).to eq(user)
+        end
+
+        it 'redirect to game page' do
+          expect(response).to redirect_to(game_path(game))
+        end
+
+        it 'show flash' do
+          expect(flash[:notice]).to be
+        end
+      end
+
+      # юзер создает игру и у него есть незаконченная игра
+      context 'user create game and have active games' do
+        before { game_w_questions }
         let!(:create_game) { post :create }
-        let!(:game) { assigns(:game) }
 
         it 'old game did not finish' do
           expect(game_w_questions.finished?).to be false
@@ -120,11 +167,12 @@ RSpec.describe GamesController, type: :controller do
     end
   end
 
+  # тесты на метод #answer
   describe '#answer' do
-    context 'when user is not signed in' do
-      before { put :answer, id: game_w_questions.id, letter: game_w_questions.current_game_question.correct_answer_key }
 
-      let!(:game) { assigns(:game) }
+    # юзер не залогинен
+    context 'user is not login' do
+      before { put :answer, id: game_w_questions.id, letter: game_w_questions.current_game_question.correct_answer_key }
 
       it 'sets game nil' do
         expect(game).to be_nil
@@ -143,13 +191,13 @@ RSpec.describe GamesController, type: :controller do
       end
     end
 
-    context 'when user signed in' do
+    # юзер залогинен
+    context 'user login' do
       before { sign_in user }
 
-      context 'and answer is correct' do
+      # правильный ответ
+      context 'answer is correct' do
         before { put :answer, id: game_w_questions.id, letter: game_w_questions.current_game_question.correct_answer_key }
-
-        let!(:game) { assigns(:game) }
 
         it 'does not finish game' do
           expect(game.finished?).to be false
@@ -168,15 +216,15 @@ RSpec.describe GamesController, type: :controller do
         end
       end
 
-      context 'and answer is wrong' do
+      # неправильный ответ
+      context 'answer is wrong' do
         let!(:game_w_questions) { FactoryBot.create(:game_with_questions, user: user, current_level: Game::FIREPROOF_LEVELS[1]) }
+
         before do
           put :answer,
               id: game_w_questions.id,
               letter: %w[a b c d].grep_v(game_w_questions.current_game_question.correct_answer_key).sample
         end
-
-        let!(:game) { assigns(:game) }
 
         it 'finishes game' do
           expect(game.finished?).to be true
@@ -202,12 +250,13 @@ RSpec.describe GamesController, type: :controller do
     end
   end
 
+  # тесты на метод #help
   describe '#help' do
+    # юзер не залогинен
     context 'when user is not signed in' do
+      # юзер пытается получить любую помощь
       context 'try use any help' do
         before { put :help, id: game_w_questions.id, help_type: :audience_help }
-
-        let!(:game) { assigns(:game) }
 
         it 'game nil' do
           expect(game).to be_nil
@@ -227,13 +276,13 @@ RSpec.describe GamesController, type: :controller do
       end
     end
 
+    # юзер не залогинен
     context 'when user is signed in' do
       before { sign_in user }
 
+      # использует подсказку помощь зала
       context 'use audience help' do
         before { put :help, id: game_w_questions.id, help_type: :audience_help }
-
-        let!(:game) { assigns(:game) }
 
         it 'does not finish game' do
           expect(game.finished?).to be false
@@ -260,10 +309,9 @@ RSpec.describe GamesController, type: :controller do
         end
       end
 
+      # использует подсказку 50/50
       context 'use fifty fifty help' do
         before { put :help, id: game_w_questions.id, help_type: :fifty_fifty }
-
-        let!(:game) { assigns(:game) }
 
         it 'does not finish game' do
           expect(game.finished?).to be false
@@ -294,10 +342,9 @@ RSpec.describe GamesController, type: :controller do
         end
       end
 
+      # использует подсказку звонок другу
       context 'and use friend call help' do
         before { put :help, id: game_w_questions.id, help_type: :friend_call }
-
-        let!(:game) { assigns(:game) }
 
         it 'does not finish game' do
           expect(game.finished?).to be false
@@ -326,12 +373,13 @@ RSpec.describe GamesController, type: :controller do
     end
   end
 
+  # тесты на метод #take money!
   describe '#take_money' do
-    context 'user is not signed in' do
-      before { game_w_questions.update_attribute(:current_level, 2) }
-      before { put :take_money, id: game_w_questions.id }
+    before { game_w_questions.update_attribute(:current_level, 2) }
 
-      let!(:game) { assigns(:game) }
+    # юзер не залогинен
+    context 'user is not signed in' do
+      before { put :take_money, id: game_w_questions.id }
 
       it 'sets game nil' do
         expect(game).to be_nil
@@ -350,12 +398,10 @@ RSpec.describe GamesController, type: :controller do
       end
     end
 
-    context 'user take money' do
+    # юзер залогинен
+    context 'user signed in' do
       before { sign_in user }
-      before { game_w_questions.update_attribute(:current_level, 2) }
       before { put :take_money, id: game_w_questions.id }
-
-      let!(:game) { assigns(:game) }
 
       it 'show flash' do
         expect(flash[:warning]).to be
