@@ -9,16 +9,12 @@ require 'support/my_spec_helper' # наш собственный класс с �
 RSpec.describe Game, type: :model do
   # пользователь для создания игр
   let(:user) { FactoryBot.create(:user) }
-
   # игра с прописанными игровыми вопросами
   let(:game_w_questions) { FactoryBot.create(:game_with_questions, user: user) }
-
   # Группа тестов на работу фабрики создания новых игр
-  describe '.create game for user!' do
+  describe '.create_game_for_user!' do
     before { generate_questions(60) }
-
     let(:create_game) { Game.create_game_for_user!(user) }
-
     it 'increases game counter' do
       expect { create_game }.to change(Game, :count).by(1)
     end
@@ -49,6 +45,11 @@ RSpec.describe Game, type: :model do
   end
 
   describe '#current_game_question' do
+    before { game_w_questions.current_level = 10 }
+    it 'the current game question is the same as the one in the array' do
+      expect(game_w_questions.current_game_question).to eq(game_w_questions.game_questions[10])
+    end
+
     it 'current game question instance GameQuestion' do
       expect(game_w_questions.current_game_question).to be_instance_of(GameQuestion)
     end
@@ -60,7 +61,6 @@ RSpec.describe Game, type: :model do
 
   describe '#previous_level' do
     before { game_w_questions.current_level = 10 }
-
     it 'returns previous level' do
       expect(game_w_questions.previous_level).to eq 9
     end
@@ -68,15 +68,12 @@ RSpec.describe Game, type: :model do
 
   describe '#answer_current_question!' do
     before { game_w_questions.answer_current_question!(answer_key) }
-
     context 'when answer is correct' do
       let!(:level) { 0 }
       let!(:answer_key) { game_w_questions.current_game_question.correct_answer_key }
-
       context 'question is last' do
         let!(:level) { Question::QUESTION_LEVELS.max }
         let!(:game_w_questions) { FactoryBot.create(:game_with_questions, user: user, current_level: level) }
-
         it 'assigns final prize' do
           expect(game_w_questions.prize).to eq(Game::PRIZES.max)
         end
@@ -113,7 +110,6 @@ RSpec.describe Game, type: :model do
                                                      user: user,
                                                      current_level: level,
                                                      created_at: Game::TIME_LIMIT.minutes.ago) }
-
         it 'finishes the game' do
           expect(game_w_questions.finished?).to be true
         end
@@ -126,7 +122,6 @@ RSpec.describe Game, type: :model do
 
     context 'when answer is wrong' do
       let!(:answer_key) { game_w_questions.current_game_question.a }
-
       it 'finishes the game' do
         expect(game_w_questions.finished?).to be true
       end
@@ -141,7 +136,6 @@ RSpec.describe Game, type: :model do
     context 'whem user take money' do
       before { game_w_questions.take_money! }
       let!(:game_w_questions) { FactoryBot.create(:game_with_questions, user: user, current_level: 5) }
-
       it 'makes prize bigger then 0' do
         expect(game_w_questions.prize).to be > 0
       end
@@ -168,7 +162,6 @@ RSpec.describe Game, type: :model do
         game_w_questions.finished_at = Time.now
         expect(game_w_questions.finished?).to be_truthy
       end
-
       it ':won' do
         game_w_questions.current_level = Question::QUESTION_LEVELS.max + 1
         expect(game_w_questions.status).to eq(:won)
